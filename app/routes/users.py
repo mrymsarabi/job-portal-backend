@@ -1,7 +1,10 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from app import bcrypt
 from app.models import get_users_collection
+from app.decorators import token_required
 from bson.objectid import ObjectId
+import jwt
+import datetime
 
 users_bp = Blueprint('users', __name__)
 users_collection = get_users_collection()
@@ -11,18 +14,14 @@ def signup():
     data = request.get_json()
     required_fields = ('first_name', 'last_name', 'username', 'email', 'password', 'birth_date')
     
-    # Check for missing fields
     if not all(key in data for key in required_fields):
         return jsonify({"error": "Missing fields"}), 400
 
-    # Check if the email already exists
     if users_collection.find_one({"email": data['email']}):
         return jsonify({"error": "Email already exists"}), 400
 
-    # Hash the password
     hashed_password = bcrypt.generate_password_hash(data['password']).decode('utf-8')
     
-    # Create the user object
     user = {
         "first_name": data['first_name'],
         "last_name": data['last_name'],
@@ -33,7 +32,6 @@ def signup():
     }
     
     try:
-        # Insert the user into the collection
         users_collection.insert_one(user)
         return jsonify({"message": "User created successfully"}), 201
     except Exception as e:
@@ -42,25 +40,30 @@ def signup():
 @users_bp.route('/login', methods=['POST'])
 def login():
     data = request.get_json()
-    
-    # Find the user by email
     user = users_collection.find_one({"username": data['username']})
     
     if user and bcrypt.check_password_hash(user['password'], data['password']):
-        return jsonify({"message": "Login successful"}), 200
+        token = jwt.encode({
+            'user_id': str(user['_id']),
+            'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=1)
+        }, current_app.config['SECRET_KEY'], algorithm='HS256')
+        
+        return jsonify({"message": "Login successful", "token": token}), 200
     else:
         return jsonify({"error": "Invalid username or password"}), 401
 
 @users_bp.route('/remove_account', methods=['DELETE'])
-def remove_account():
-    data = request.get_json()
+@token_required
+def remove_account(current_user):
+    user = users_collection.find_one({"_id": ObjectId(current_user)})
     
-    # Find the user by email
-    user = users_collection.find_one({"email": data['email']})
-    
-    if user and bcrypt.check_password_hash(user['password'], data['password']):
-        # Remove the user from the collection
+    if user and bcrypt.check_password_hash(user['password'], request.get_json()['password']):
         users_collection.delete_one({"_id": ObjectId(user['_id'])})
         return jsonify({"message": "Account deleted successfully"}), 200
     else:
-        return jsonify({"error": "Invalid email or password"}), 401
+        return jsonify({"error": "Invalid password"}), 401
+
+@users_bp.route('/protected', methods=['GET'])
+@token_required
+def protected_route(current_user):
+    return jsonify({"message": f"Hello, user {current_user}!"})
