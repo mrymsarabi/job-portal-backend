@@ -48,7 +48,7 @@ def login():
             'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=1)
         }, current_app.config['SECRET_KEY'], algorithm='HS256')
         
-        return jsonify({"message": "Login successful", "token": token}), 200
+        return jsonify({"message": "Login successful", "token": token, "user_id": str(user['_id'])}), 200
     else:
         return jsonify({"error": "Invalid username or password"}), 401
 

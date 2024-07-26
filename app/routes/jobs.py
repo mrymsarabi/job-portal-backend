@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify, current_app
-from app.models import get_jobs_collection
+from app.models import get_jobs_collection, get_user_by_id
 from app.decorators import token_required
 from bson.objectid import ObjectId
 import datetime
@@ -16,6 +16,11 @@ def add_job(current_user):
     if not all(key in data for key in required_fields):
         return jsonify({"error": "Missing fields"}), 400
 
+    # Retrieve the user document
+    user = get_user_by_id(current_user)
+    if user is None:
+        return jsonify({"error": "User not found"}), 404
+
     job = {
         "title": data['title'],
         "date_posted": datetime.datetime.utcnow(),
@@ -27,7 +32,7 @@ def add_job(current_user):
         "description": data['description'],
         "benefits": data['benefits'],
         "company_id": current_user,
-        "company_name": data.get('company_name')
+        "company_name": user.get('username')  # Now user is defined and you can access the username
     }
 
     try:
@@ -83,3 +88,16 @@ def update_job(current_user, job_id):
             return jsonify({"error": "No fields to update"}), 400
     else:
         return jsonify({"error": "Job not found or unauthorized"}), 404
+
+@jobs_bp.route('/jobs/user', methods=['GET'])
+@token_required
+def get_jobs_by_user(current_user):
+    jobs = list(jobs_collection.find({"company_id": current_user}))
+    for job in jobs:
+        job['_id'] = str(job['_id'])
+        job['company_id'] = str(job['company_id'])
+    return jsonify(jobs), 200
+
+@jobs_bp.route('/test', methods=['GET'])
+def test_route():
+    return "Test route is working!"
