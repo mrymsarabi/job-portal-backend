@@ -90,14 +90,13 @@ def update_job(current_user, job_id):
         return jsonify({"error": "Job not found or unauthorized"}), 404
 
 @jobs_bp.route('/jobs/user', methods=['GET'])
-@token_required
-def get_jobs_by_user(current_user):
-    jobs = list(jobs_collection.find({"company_id": current_user}))
+def get_jobs_by_user():
+    user_id = request.args.get('user_id')
+    if not user_id:
+        return jsonify({"error": "User ID is required"}), 400
+    
+    jobs = list(jobs_collection.find({"company_id": user_id}))
     for job in jobs:
         job['_id'] = str(job['_id'])
         job['company_id'] = str(job['company_id'])
     return jsonify(jobs), 200
-
-@jobs_bp.route('/test', methods=['GET'])
-def test_route():
-    return "Test route is working!"
