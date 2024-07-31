@@ -58,8 +58,8 @@ def get_profile(current_user):
     try:
         user = users_collection.find_one({"_id": ObjectId(current_user)})
         if user:
-            # Remove sensitive information
             user_data = {
+                "user_id": str(user["_id"]),  # Include user_id for updates
                 "first_name": user["first_name"],
                 "last_name": user["last_name"],
                 "username": user["username"],
@@ -69,6 +69,39 @@ def get_profile(current_user):
             return jsonify({"user": user_data}), 200
         else:
             return jsonify({"error": "User not found"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@users_bp.route('/profile', methods=['PUT'])
+@token_required
+def update_profile(current_user):
+    data = request.get_json()
+    update_fields = {}
+
+    # Only update fields if they are provided
+    if 'first_name' in data:
+        update_fields['first_name'] = data['first_name']
+    if 'last_name' in data:
+        update_fields['last_name'] = data['last_name']
+    if 'username' in data:
+        if users_collection.find_one({"username": data['username'], "_id": {"$ne": ObjectId(current_user)}}):
+            return jsonify({"error": "Username already taken"}), 400
+        update_fields['username'] = data['username']
+    if 'email' in data:
+        if users_collection.find_one({"email": data['email'], "_id": {"$ne": ObjectId(current_user)}}):
+            return jsonify({"error": "Email already exists"}), 400
+        update_fields['email'] = data['email']
+    if 'password' in data:
+        update_fields['password'] = bcrypt.generate_password_hash(data['password']).decode('utf-8')
+    if 'birth_date' in data:
+        update_fields['birth_date'] = data['birth_date']
+
+    if not update_fields:
+        return jsonify({"error": "No fields to update"}), 400
+
+    try:
+        users_collection.update_one({"_id": ObjectId(current_user)}, {"$set": update_fields})
+        return jsonify({"message": "Profile updated successfully"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
