@@ -52,6 +52,26 @@ def login():
     else:
         return jsonify({"error": "Invalid username or password"}), 401
 
+@users_bp.route('/profile', methods=['GET'])
+@token_required
+def get_profile(current_user):
+    try:
+        user = users_collection.find_one({"_id": ObjectId(current_user)})
+        if user:
+            # Remove sensitive information
+            user_data = {
+                "first_name": user["first_name"],
+                "last_name": user["last_name"],
+                "username": user["username"],
+                "email": user["email"],
+                "birth_date": user["birth_date"]
+            }
+            return jsonify({"user": user_data}), 200
+        else:
+            return jsonify({"error": "User not found"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @users_bp.route('/remove_account', methods=['DELETE'])
 @token_required
 def remove_account(current_user):
