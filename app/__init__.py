@@ -19,8 +19,10 @@ def create_app():
     
     from app.routes.users import users_bp
     from app.routes.jobs import jobs_bp
+    from app.routes.resume import resume_bp
+    
     app.register_blueprint(users_bp, url_prefix='/users')
-
     app.register_blueprint(jobs_bp, url_prefix='/jobs')
+    app.register_blueprint(resume_bp, url_prefix='/resume')
     
     return app
