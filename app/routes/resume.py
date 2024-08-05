@@ -22,6 +22,7 @@ def create_resume_schema():
         "references": []
     }
 
+# Add or update resume section
 @resume_bp.route('/resume', methods=['POST'])
 @token_required
 def add_resume_section(current_user):
@@ -65,6 +66,7 @@ def add_resume_section(current_user):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# Get the resume of the logged-in user
 @resume_bp.route('/resume', methods=['GET'])
 @token_required
 def get_resume(current_user):
@@ -78,7 +80,7 @@ def get_resume(current_user):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# Ensure this route is protected, as the resume data is sensitive and should only be accessed by the respective user.
+# Delete specific sections or the entire resume
 @resume_bp.route('/resume', methods=['DELETE'])
 @token_required
 def delete_resume_section(current_user):
@@ -92,16 +94,15 @@ def delete_resume_section(current_user):
 
         # Remove specific sections or entire resume
         for key in data.keys():
-            if key in resume:
+            if key in resume and key != "user_id":
                 resume.pop(key, None)
 
-        if resume == {"user_id": user_id}:
-            # If all fields are removed, delete the entire document
+        # Check if only user_id remains, indicating an empty resume
+        if len(resume) == 1 and "user_id" in resume:
             resumes_collection.delete_one({"user_id": user_id})
+            return jsonify({"message": "Resume deleted successfully"}), 200
         else:
-            # Otherwise, update the document with the remaining fields
             resumes_collection.update_one({"user_id": user_id}, {"$set": resume})
-
-        return jsonify({"message": "Resume section(s) deleted successfully"}), 200
+            return jsonify({"message": "Resume section(s) deleted successfully"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
