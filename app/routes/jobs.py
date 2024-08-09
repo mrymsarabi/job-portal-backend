@@ -100,3 +100,12 @@ def get_jobs_by_user():
         job['_id'] = str(job['_id'])
         job['company_id'] = str(job['company_id'])
     return jsonify(jobs), 200
+
+@jobs_bp.route('/jobs/mine', methods=['GET'])
+@token_required
+def get_my_jobs(current_user):
+    jobs = list(jobs_collection.find({"company_id": current_user}))
+    for job in jobs:
+        job['_id'] = str(job['_id'])
+        job['company_id'] = str(job['company_id'])
+    return jsonify(jobs), 200
