@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify
 from app.models import get_jobs_collection, get_user_by_id
 from app.decorators import token_required
 from bson.objectid import ObjectId
@@ -32,7 +32,7 @@ def add_job(current_user):
         "description": data['description'],
         "benefits": data['benefits'],
         "company_id": current_user,
-        "company_name": user.get('username')  # Now user is defined and you can access the username
+        "company_name": user.get('username')
     }
 
     try:
@@ -41,71 +41,104 @@ def add_job(current_user):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+def paginate_query(query, page_size, current_page):
+    total_count = query.count()
+    if current_page == 0:
+        items = list(query)
+    else:
+        skip = (current_page - 1) * page_size
+        items = list(query.skip(skip).limit(page_size))
+
+    for i, item in enumerate(items):
+        item['_id'] = str(item['_id'])
+        item['company_id'] = str(item['company_id'])
+        item['counter'] = skip + i + 1
+
+    return {
+        "total_count": total_count,
+        "page_size": page_size,
+        "current_page": current_page,
+        "items": items
+    }
+
 @jobs_bp.route('/jobs', methods=['GET'])
 def get_jobs():
-    jobs = list(jobs_collection.find())
-    for job in jobs:
+    page_size = int(request.args.get('page_size', 10))  # Default page size is 10
+    current_page = int(request.args.get('current_page', 1))  # Default to the first page
+
+    query = jobs_collection.find()
+    total_count = jobs_collection.count_documents({})  # Count total documents
+
+    if current_page == 0:
+        jobs = list(query)
+    else:
+        jobs = list(query.skip(page_size * (current_page - 1)).limit(page_size))
+
+    for index, job in enumerate(jobs, start=(current_page - 1) * page_size + 1):
         job['_id'] = str(job['_id'])
         job['company_id'] = str(job['company_id'])
-    return jsonify(jobs), 200
+        job['counter'] = index
 
-@jobs_bp.route('/jobs/<job_id>', methods=['GET'])
-def get_job(job_id):
-    job = jobs_collection.find_one({"_id": ObjectId(job_id)})
-    if job:
-        job['_id'] = str(job['_id'])
-        job['company_id'] = str(job['company_id'])
-        return jsonify(job), 200
-    else:
-        return jsonify({"error": "Job not found"}), 404
+    return jsonify({
+        "total_count": total_count,
+        "page_size": page_size,
+        "current_page": current_page,
+        "jobs": jobs
+    }), 200
 
-@jobs_bp.route('/jobs/<job_id>', methods=['DELETE'])
-@token_required
-def delete_job(current_user, job_id):
-    job = jobs_collection.find_one({"_id": ObjectId(job_id)})
-    if job and str(job['company_id']) == current_user:
-        jobs_collection.delete_one({"_id": ObjectId(job_id)})
-        return jsonify({"message": "Job deleted successfully"}), 200
-    else:
-        return jsonify({"error": "Job not found or unauthorized"}), 404
-
-@jobs_bp.route('/jobs/<job_id>', methods=['PUT'])
-@token_required
-def update_job(current_user, job_id):
-    data = request.get_json()
-    job = jobs_collection.find_one({"_id": ObjectId(job_id)})
-
-    if job and str(job['company_id']) == current_user:
-        updated_fields = {}
-        for key in ('title', 'sector', 'salary', 'location', 'job_type', 'requirements', 'description', 'benefits'):
-            if key in data:
-                updated_fields[key] = data[key]
-        
-        if updated_fields:
-            jobs_collection.update_one({"_id": ObjectId(job_id)}, {"$set": updated_fields})
-            return jsonify({"message": "Job updated successfully"}), 200
-        else:
-            return jsonify({"error": "No fields to update"}), 400
-    else:
-        return jsonify({"error": "Job not found or unauthorized"}), 404
 
 @jobs_bp.route('/jobs/user', methods=['GET'])
 def get_jobs_by_user():
     user_id = request.args.get('user_id')
     if not user_id:
         return jsonify({"error": "User ID is required"}), 400
-    
-    jobs = list(jobs_collection.find({"company_id": user_id}))
-    for job in jobs:
+
+    page_size = int(request.args.get('page_size', 10))  # Default page size is 10
+    current_page = int(request.args.get('current_page', 1))  # Default to the first page
+
+    query = jobs_collection.find({"company_id": user_id})
+    total_count = jobs_collection.count_documents({"company_id": user_id})
+
+    if current_page == 0:
+        jobs = list(query)
+    else:
+        jobs = list(query.skip(page_size * (current_page - 1)).limit(page_size))
+
+    for index, job in enumerate(jobs, start=(current_page - 1) * page_size + 1):
         job['_id'] = str(job['_id'])
         job['company_id'] = str(job['company_id'])
-    return jsonify(jobs), 200
+        job['counter'] = index
+
+    return jsonify({
+        "total_count": total_count,
+        "page_size": page_size,
+        "current_page": current_page,
+        "jobs": jobs
+    }), 200
+
 
 @jobs_bp.route('/jobs/mine', methods=['GET'])
 @token_required
 def get_my_jobs(current_user):
-    jobs = list(jobs_collection.find({"company_id": current_user}))
-    for job in jobs:
+    page_size = int(request.args.get('page_size', 10))  # Default page size is 10
+    current_page = int(request.args.get('current_page', 1))  # Default to the first page
+
+    query = jobs_collection.find({"company_id": current_user})
+    total_count = jobs_collection.count_documents({"company_id": current_user})
+
+    if current_page == 0:
+        jobs = list(query)
+    else:
+        jobs = list(query.skip(page_size * (current_page - 1)).limit(page_size))
+
+    for index, job in enumerate(jobs, start=(current_page - 1) * page_size + 1):
         job['_id'] = str(job['_id'])
         job['company_id'] = str(job['company_id'])
-    return jsonify(jobs), 200
+        job['counter'] = index
+
+    return jsonify({
+        "total_count": total_count,
+        "page_size": page_size,
+        "current_page": current_page,
+        "jobs": jobs
+    }), 200
