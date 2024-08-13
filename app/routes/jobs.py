@@ -120,22 +120,27 @@ def get_jobs_by_user():
 @jobs_bp.route('/jobs/mine', methods=['GET'])
 @token_required
 def get_my_jobs(current_user):
+    # Retrieve pagination parameters from the query string
     page_size = int(request.args.get('page_size', 10))  # Default page size is 10
     current_page = int(request.args.get('current_page', 1))  # Default to the first page
 
+    # Query for jobs associated with the current user
     query = jobs_collection.find({"company_id": current_user})
+
+    # Calculate total count for pagination purposes
     total_count = jobs_collection.count_documents({"company_id": current_user})
 
-    if current_page == 0:
-        jobs = list(query)
-    else:
-        jobs = list(query.skip(page_size * (current_page - 1)).limit(page_size))
+    # Apply pagination logic
+    skip = (current_page - 1) * page_size
+    jobs = list(query.skip(skip).limit(page_size))
 
-    for index, job in enumerate(jobs, start=(current_page - 1) * page_size + 1):
+    # Process each job for frontend consumption
+    for index, job in enumerate(jobs, start=skip + 1):
         job['_id'] = str(job['_id'])
         job['company_id'] = str(job['company_id'])
         job['counter'] = index
 
+    # Return the paginated results
     return jsonify({
         "total_count": total_count,
         "page_size": page_size,
