@@ -16,6 +16,15 @@ def get_resumes_collection():
         raise RuntimeError("MongoDB not initialized")
     return mongo.db.resumes
 
+def get_job_applications_collection():
+    if mongo.db is None:
+        raise RuntimeError("MongoDB not initialized")
+    return mongo.db.job_applications  # Add the job applications collection
+
 def get_user_by_id(user_id):
     users_collection = get_users_collection()
     return users_collection.find_one({"_id": ObjectId(user_id)})
+
+def get_job_application_by_id(application_id):
+    applications_collection = get_job_applications_collection()
+    return applications_collection.find_one({"_id": ObjectId(application_id)})
