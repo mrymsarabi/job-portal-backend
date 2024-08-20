@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from app.models import get_jobs_collection, get_user_by_id, get_job_applications_collection
+from app.models import get_jobs_collection, get_user_by_id, get_job_applications_collection, get_company_by_id
 from app.decorators import token_required
 from bson.objectid import ObjectId
 import datetime
@@ -12,16 +12,22 @@ job_applications_collection = get_job_applications_collection()
 @token_required
 def add_job(current_user):
     data = request.get_json()
-    required_fields = ('title', 'sector', 'salary', 'location', 'job_type', 'requirements', 'description', 'benefits')
+    required_fields = ('title', 'sector', 'salary', 'location', 'job_type', 'requirements', 'description', 'benefits', 'company_id')
 
     if not all(key in data for key in required_fields):
         return jsonify({"error": "Missing fields"}), 400
 
-    # Retrieve the user document
     user = get_user_by_id(current_user)
     if user is None:
         return jsonify({"error": "User not found"}), 404
 
+    # Retrieve the company details
+    company_id = data['company_id']
+    company = get_company_by_id(company_id)
+    if not company:
+        return jsonify({"error": "Company not found"}), 404
+
+    # Prepare the job document with the posted_by field and company_name
     job = {
         "title": data['title'],
         "date_posted": datetime.datetime.utcnow(),
@@ -32,8 +38,11 @@ def add_job(current_user):
         "requirements": data['requirements'],
         "description": data['description'],
         "benefits": data['benefits'],
-        "company_id": current_user,
-        "company_name": user.get('username')
+        "posted_by": {
+            "user_id": ObjectId(current_user),
+            "company_id": ObjectId(company_id)  # Set company_id
+        },
+        "company_name": company['title']  # Use the company's title as the company name
     }
 
     try:
@@ -57,7 +66,8 @@ def get_jobs():
 
     for index, job in enumerate(jobs, start=(current_page - 1) * page_size + 1):
         job['_id'] = str(job['_id'])
-        job['company_id'] = str(job['company_id'])
+        job['posted_by']['user_id'] = str(job['posted_by']['user_id'])
+        job['posted_by']['company_id'] = str(job['posted_by']['company_id'])
         job['counter'] = index
 
     return jsonify({
@@ -68,17 +78,13 @@ def get_jobs():
     }), 200
 
 
-@jobs_bp.route('/jobs/user', methods=['GET'])
-def get_jobs_by_user():
-    user_id = request.args.get('user_id')
-    if not user_id:
-        return jsonify({"error": "User ID is required"}), 400
-
+@jobs_bp.route('/jobs/user/<user_id>', methods=['GET'])
+def get_jobs_by_user(user_id):
     page_size = int(request.args.get('page_size', 10))  # Default page size is 10
     current_page = int(request.args.get('current_page', 1))  # Default to the first page
 
-    query = jobs_collection.find({"company_id": user_id})
-    total_count = jobs_collection.count_documents({"company_id": user_id})
+    query = jobs_collection.find({"posted_by.user_id": ObjectId(user_id)})
+    total_count = jobs_collection.count_documents({"posted_by.user_id": ObjectId(user_id)})
 
     if current_page == 0:
         jobs = list(query)
@@ -87,7 +93,8 @@ def get_jobs_by_user():
 
     for index, job in enumerate(jobs, start=(current_page - 1) * page_size + 1):
         job['_id'] = str(job['_id'])
-        job['company_id'] = str(job['company_id'])
+        job['posted_by']['user_id'] = str(job['posted_by']['user_id'])
+        job['posted_by']['company_id'] = str(job['posted_by']['company_id'])
         job['counter'] = index
 
     return jsonify({
@@ -101,27 +108,23 @@ def get_jobs_by_user():
 @jobs_bp.route('/jobs/mine', methods=['GET'])
 @token_required
 def get_my_jobs(current_user):
-    # Retrieve pagination parameters from the query string
     page_size = int(request.args.get('page_size', 10))  # Default page size is 10
     current_page = int(request.args.get('current_page', 1))  # Default to the first page
 
-    # Query for jobs associated with the current user
-    query = jobs_collection.find({"company_id": current_user})
-    total_count = jobs_collection.count_documents({"company_id": current_user})
+    query = jobs_collection.find({"posted_by.user_id": ObjectId(current_user)})
+    total_count = jobs_collection.count_documents({"posted_by.user_id": ObjectId(current_user)})
 
-    # Paginate results
-    if current_page == 0:  # Fetch all results without pagination
+    if current_page == 0:
         jobs = list(query)
     else:
         jobs = list(query.skip(page_size * (current_page - 1)).limit(page_size))
 
-    # Convert ObjectIds to strings for JSON serialization and add counters
     for index, job in enumerate(jobs, start=(current_page - 1) * page_size + 1):
         job['_id'] = str(job['_id'])
-        job['company_id'] = str(job['company_id'])
+        job['posted_by']['user_id'] = str(job['posted_by']['user_id'])
+        job['posted_by']['company_id'] = str(job['posted_by']['company_id'])
         job['counter'] = index
 
-    # Return paginated job results with metadata
     return jsonify({
         "total_count": total_count,
         "page_size": page_size,
@@ -137,7 +140,7 @@ def delete_job(current_user, job_id):
     if not job:
         return jsonify({"error": "Job not found"}), 404
 
-    if str(job['company_id']) != current_user:
+    if str(job['posted_by']['user_id']) != current_user:
         return jsonify({"error": "Unauthorized"}), 403
 
     try:
