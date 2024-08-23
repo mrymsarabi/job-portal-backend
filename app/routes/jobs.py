@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from app.models import get_jobs_collection, get_user_by_id, get_job_applications_collection, get_company_by_id
+from app.models import get_jobs_collection, get_user_by_id, get_job_applications_collection, get_company_by_id, get_companies_collection
 from app.decorators import token_required
 from bson.objectid import ObjectId
 import datetime
@@ -12,7 +12,7 @@ job_applications_collection = get_job_applications_collection()
 @token_required
 def add_job(current_user):
     data = request.get_json()
-    required_fields = ('title', 'sector', 'salary', 'location', 'job_type', 'requirements', 'description', 'benefits', 'company_id')
+    required_fields = ('title', 'sector', 'salary', 'location', 'job_type', 'requirements', 'description', 'benefits')
 
     if not all(key in data for key in required_fields):
         return jsonify({"error": "Missing fields"}), 400
@@ -21,13 +21,18 @@ def add_job(current_user):
     if user is None:
         return jsonify({"error": "User not found"}), 404
 
-    # Retrieve the company details
-    company_id = data['company_id']
-    company = get_company_by_id(company_id)
-    if not company:
-        return jsonify({"error": "Company not found"}), 404
+    # Try to retrieve the company associated with the user
+    companies_collection = get_companies_collection()  # Call the function to get the collection
+    company = companies_collection.find_one({"user_id": ObjectId(current_user)})
 
-    # Prepare the job document with the posted_by field and company_name
+    if company:
+        company_id = company['_id']
+        company_name = company['title']
+    else:
+        company_id = None  # Set to None if the user has no associated company
+        company_name = None
+
+    # Prepare the job document
     job = {
         "title": data['title'],
         "date_posted": datetime.datetime.utcnow(),
@@ -40,9 +45,9 @@ def add_job(current_user):
         "benefits": data['benefits'],
         "posted_by": {
             "user_id": ObjectId(current_user),
-            "company_id": ObjectId(company_id)  # Set company_id
+            "company_id": company_id  # Set company_id to None if no company
         },
-        "company_name": company['title']  # Use the company's title as the company name
+        "company_name": company_name  # Set company_name to None if no company
     }
 
     try:
