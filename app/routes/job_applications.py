@@ -68,6 +68,26 @@ def get_applications_for_job(current_user, job_id):
 
     return jsonify({"applications": application_list}), 200
 
+@job_applications_bp.route('/my-applications', methods=['GET'])
+@token_required  # Ensure that the user is authenticated
+def get_my_applications(current_user):
+    applications = job_applications_collection.find({"user_id": ObjectId(current_user)})
+    
+    applied_jobs = []
+    for application in applications:
+        job = jobs_collection.find_one({"_id": application["job_id"]})
+        if job:
+            applied_jobs.append({
+                "application_id": str(application["_id"]),
+                "job_id": str(job["_id"]),
+                "job_title": job["title"],
+                "company_name": job.get("company_name", "N/A"),
+                "location": job["location"],
+                "date_applied": application["date_applied"]
+            })
+    
+    return jsonify({"applied_jobs": applied_jobs}), 200
+
 # Delete a Job Application
 @job_applications_bp.route('/applications/<application_id>', methods=['DELETE'])
 @token_required

@@ -82,6 +82,21 @@ def get_jobs():
         "jobs": jobs
     }), 200
 
+@jobs_bp.route('/jobs/<job_id>', methods=['GET'])
+def get_job_by_id(job_id):
+    try:
+        job = jobs_collection.find_one({"_id": ObjectId(job_id)})
+        if job:
+            # Convert ObjectId to string for JSON serialization
+            job['_id'] = str(job['_id'])
+            job['posted_by']['user_id'] = str(job['posted_by']['user_id'])
+            job['posted_by']['company_id'] = str(job['posted_by']['company_id'])
+            return jsonify(job), 200
+        else:
+            return jsonify({"error": "Job not found"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 @jobs_bp.route('/jobs/user/<user_id>', methods=['GET'])
 def get_jobs_by_user(user_id):
