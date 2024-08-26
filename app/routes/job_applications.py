@@ -40,7 +40,7 @@ def apply_for_job(current_user):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# Get Applications for a Specific Job
+# Get Applications for a Specific Job with Pagination
 @job_applications_bp.route('/applications/<job_id>', methods=['GET'])
 @token_required
 def get_applications_for_job(current_user, job_id):
@@ -51,13 +51,26 @@ def get_applications_for_job(current_user, job_id):
     if str(job['company_id']) != current_user:
         return jsonify({"error": "Unauthorized"}), 403
 
-    applications = job_applications_collection.find({"job_id": ObjectId(job_id)})
+    # Pagination parameters
+    page_size = int(request.args.get('page_size', 10))
+    current_page = int(request.args.get('current_page', 1))
+
+    # Fetch applications with pagination
+    total_count = job_applications_collection.count_documents({"job_id": ObjectId(job_id)})
+    query = job_applications_collection.find({"job_id": ObjectId(job_id)})
+    
+    if current_page == 0:
+        applications = list(query)
+    else:
+        applications = list(query.skip(page_size * (current_page - 1)).limit(page_size))
+    
     application_list = []
-    for application in applications:
+    for index, application in enumerate(applications, start=(current_page - 1) * page_size + 1):
         user = get_user_by_id(application["user_id"])
         resume = resumes_collection.find_one({"_id": application["resume_id"]})
-
+        
         application_list.append({
+            "counter": index,
             "application_id": str(application["_id"]),
             "user_id": str(application["user_id"]),
             "user_name": f"{user['first_name']} {user['last_name']}",
@@ -66,18 +79,36 @@ def get_applications_for_job(current_user, job_id):
             "date_applied": application["date_applied"],
         })
 
-    return jsonify({"applications": application_list}), 200
+    return jsonify({
+        "total_count": total_count,
+        "page_size": page_size,
+        "current_page": current_page,
+        "applications": application_list
+    }), 200
 
+# Get My Applications with Pagination
 @job_applications_bp.route('/my-applications', methods=['GET'])
-@token_required  # Ensure that the user is authenticated
+@token_required
 def get_my_applications(current_user):
-    applications = job_applications_collection.find({"user_id": ObjectId(current_user)})
+    # Pagination parameters
+    page_size = int(request.args.get('page_size', 10))
+    current_page = int(request.args.get('current_page', 1))
+
+    # Fetch applications with pagination
+    total_count = job_applications_collection.count_documents({"user_id": ObjectId(current_user)})
+    query = job_applications_collection.find({"user_id": ObjectId(current_user)})
     
+    if current_page == 0:
+        applications = list(query)
+    else:
+        applications = list(query.skip(page_size * (current_page - 1)).limit(page_size))
+
     applied_jobs = []
-    for application in applications:
+    for index, application in enumerate(applications, start=(current_page - 1) * page_size + 1):
         job = jobs_collection.find_one({"_id": application["job_id"]})
         if job:
             applied_jobs.append({
+                "counter": index,
                 "application_id": str(application["_id"]),
                 "job_id": str(job["_id"]),
                 "job_title": job["title"],
@@ -86,7 +117,12 @@ def get_my_applications(current_user):
                 "date_applied": application["date_applied"]
             })
     
-    return jsonify({"applied_jobs": applied_jobs}), 200
+    return jsonify({
+        "total_count": total_count,
+        "page_size": page_size,
+        "current_page": current_page,
+        "applied_jobs": applied_jobs
+    }), 200
 
 # Delete a Job Application
 @job_applications_bp.route('/applications/<application_id>', methods=['DELETE'])
