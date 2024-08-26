@@ -26,6 +26,11 @@ def get_companies_collection():
         raise RuntimeError("MongoDB not initialized")
     return mongo.db.companies
 
+def get_messages_collection():
+    if mongo.db is None:
+        raise RuntimeError("MongoDB not initialized")
+    return mongo.db.messages
+
 def get_user_by_id(user_id):
     users_collection = get_users_collection()
     return users_collection.find_one({"_id": ObjectId(user_id)})

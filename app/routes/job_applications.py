@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from bson.objectid import ObjectId
-from app.models import get_jobs_collection, get_resumes_collection, get_job_applications_collection, get_user_by_id, get_job_application_by_id
+from app.models import get_jobs_collection, get_resumes_collection, get_job_applications_collection, get_user_by_id, get_job_application_by_id, get_messages_collection
 from app.decorators import token_required
 import datetime
 
@@ -8,6 +8,7 @@ job_applications_bp = Blueprint('job_applications', __name__)
 job_applications_collection = get_job_applications_collection()
 jobs_collection = get_jobs_collection()
 resumes_collection = get_resumes_collection()
+messages_collection = get_messages_collection()
 
 # Apply for a Job
 @job_applications_bp.route('/apply', methods=['POST'])
@@ -32,6 +33,7 @@ def apply_for_job(current_user):
         "user_id": ObjectId(current_user),
         "resume_id": resume["_id"],
         "date_applied": datetime.datetime.utcnow(),
+        "status": "pending",  # New status field
     }
 
     try:
@@ -77,6 +79,7 @@ def get_applications_for_job(current_user, job_id):
             "resume_id": str(application["resume_id"]),
             "resume": resume,
             "date_applied": application["date_applied"],
+            "status": application["status"]  # Include the status
         })
 
     return jsonify({
@@ -86,7 +89,7 @@ def get_applications_for_job(current_user, job_id):
         "applications": application_list
     }), 200
 
-# Get My Applications with Pagination
+# Get My Applications with Pagination and Messages
 @job_applications_bp.route('/my-applications', methods=['GET'])
 @token_required
 def get_my_applications(current_user):
@@ -107,6 +110,7 @@ def get_my_applications(current_user):
     for index, application in enumerate(applications, start=(current_page - 1) * page_size + 1):
         job = jobs_collection.find_one({"_id": application["job_id"]})
         if job:
+            messages = list(messages_collection.find({"application_id": application["_id"]}))
             applied_jobs.append({
                 "counter": index,
                 "application_id": str(application["_id"]),
@@ -114,7 +118,9 @@ def get_my_applications(current_user):
                 "job_title": job["title"],
                 "company_name": job.get("company_name", "N/A"),
                 "location": job["location"],
-                "date_applied": application["date_applied"]
+                "date_applied": application["date_applied"],
+                "status": application["status"],  # Include the status
+                "messages": messages  # Include the messages
             })
     
     return jsonify({
@@ -123,6 +129,49 @@ def get_my_applications(current_user):
         "current_page": current_page,
         "applied_jobs": applied_jobs
     }), 200
+
+# Update Application Status (Employer)
+@job_applications_bp.route('/applications/<application_id>/status', methods=['PATCH'])
+@token_required
+def update_application_status(current_user, application_id):
+    data = request.get_json()
+
+    if not data or 'status' not in data or 'message' not in data:
+        return jsonify({"error": "Missing status or message"}), 400
+
+    application = get_job_application_by_id(application_id)
+    if not application:
+        return jsonify({"error": "Application not found"}), 404
+
+    job = jobs_collection.find_one({"_id": application['job_id']})
+    if not job or str(job['company_id']) != current_user:
+        return jsonify({"error": "Unauthorized"}), 403
+
+    new_status = data['status']
+    message_content = data['message']
+
+    # Update application status
+    job_applications_collection.update_one(
+        {"_id": ObjectId(application_id)},
+        {"$set": {"status": new_status}}
+    )
+
+    # Create a message
+    message = {
+        "application_id": ObjectId(application_id),
+        "sender_id": ObjectId(current_user),  # Employer ID
+        "recipient_id": ObjectId(application['user_id']),  # Applicant ID
+        "message": message_content,
+        "status": new_status,
+        "timestamp": datetime.datetime.utcnow(),
+    }
+
+    try:
+        # Save the message to the messages collection
+        messages_collection.insert_one(message)
+        return jsonify({"message": "Application status updated successfully"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # Delete a Job Application
 @job_applications_bp.route('/applications/<application_id>', methods=['DELETE'])
