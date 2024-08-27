@@ -15,10 +15,23 @@ def signup():
     required_fields = ('first_name', 'last_name', 'username', 'email', 'password', 'birth_date')
     
     if not all(key in data for key in required_fields):
-        return jsonify({"error": "Missing fields"}), 400
+        return jsonify({
+            "status": "error",
+            "error": "Missing fields"
+        }), 400
 
     if users_collection.find_one({"email": data['email']}):
-        return jsonify({"error": "Email already exists"}), 400
+        return jsonify({
+            "status": "error",
+            "error": "Email already exists"
+        }), 400
+
+    # Check if username already exists
+    if users_collection.find_one({"username": data['username']}):
+        return jsonify({
+            "status": "error",
+            "error": "Username already exists"
+        }), 400
 
     hashed_password = bcrypt.generate_password_hash(data['password']).decode('utf-8')
     
@@ -33,9 +46,15 @@ def signup():
     
     try:
         users_collection.insert_one(user)
-        return jsonify({"message": "User created successfully"}), 201
+        return jsonify({
+        "status": "success",
+        "message": "User created successfully"
+        }), 201
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({
+            "status": "error",
+            "error": str(e)
+        }), 500
 
 @users_bp.route('/login', methods=['POST'])
 def login():
@@ -48,9 +67,17 @@ def login():
             'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=1)
         }, current_app.config['SECRET_KEY'], algorithm='HS256')
         
-        return jsonify({"message": "Login successful", "token": token, "user_id": str(user['_id'])}), 200
+        return jsonify({
+            "status": "success", 
+            "message": "Login successful", 
+            "token": token, 
+            "user_id": str(user['_id'])
+        }), 200
     else:
-        return jsonify({"error": "Invalid username or password"}), 401
+        return jsonify({
+            "status": "error", 
+            "error": "Invalid username or password"
+        }), 401
 
 @users_bp.route('/profile', methods=['GET'])
 @token_required
