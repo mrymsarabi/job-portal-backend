@@ -5,6 +5,7 @@ from app.decorators import token_required
 from bson.objectid import ObjectId
 import jwt
 import datetime
+from app.utils import validate_token
 
 users_bp = Blueprint('users', __name__)
 users_collection = get_users_collection()
@@ -149,11 +150,27 @@ def protected_route(current_user):
     return jsonify({"message": f"Hello, user {current_user}!"})
 
 @users_bp.route('/check_login', methods=['GET'])
-@token_required
-def check_login_status(current_user):
-    return jsonify({
-        "status": "success",
-        "message": "User is logged in",
-        "user_id": current_user
-    }), 200
+def check_login_status():
+    auth_header = request.headers.get('Authorization')
+    if auth_header:
+        token = auth_header.split(" ")[1]  # Assuming the header is in the format "Bearer <token>"
+        is_valid, user_info = validate_token(token)
+
+        if is_valid:
+            return jsonify({
+                "status": "success",
+                "message": "User is logged in",
+                "user_id": user_info
+            }), 200
+        else:
+            return jsonify({
+                "status": "error",
+                "message": user_info  # This will return the error message from validate_token
+            }), 401
+    else:
+        return jsonify({
+            "status": "error",
+            "message": "Token is missing"
+        }), 401
+
 
