@@ -64,7 +64,7 @@ def login():
     if user and bcrypt.check_password_hash(user['password'], data['password']):
         token = jwt.encode({
             'user_id': str(user['_id']),
-            'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=1)
+            'exp': datetime.datetime.utcnow() + datetime.timedelta(days=1)
         }, current_app.config['SECRET_KEY'], algorithm='HS256')
         
         return jsonify({
@@ -147,3 +147,13 @@ def remove_account(current_user):
 @token_required
 def protected_route(current_user):
     return jsonify({"message": f"Hello, user {current_user}!"})
+
+@users_bp.route('/check_login', methods=['GET'])
+@token_required
+def check_login_status(current_user):
+    return jsonify({
+        "status": "success",
+        "message": "User is logged in",
+        "user_id": current_user
+    }), 200
+
