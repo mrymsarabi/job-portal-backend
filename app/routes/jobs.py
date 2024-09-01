@@ -12,27 +12,30 @@ job_applications_collection = get_job_applications_collection()
 @token_required
 def add_job(current_user):
     data = request.get_json()
-    required_fields = ('title', 'sector', 'salary', 'location', 'job_type', 'requirements', 'description', 'benefits')
-
-    if not all(key in data for key in required_fields):
-        return jsonify({"error": "Missing fields"}), 400
+    
+    # Required fields
+    required_fields = ('title', 'sector', 'salary', 'location', 'job_type')
+    
+    # Check for missing required fields
+    if not all(key in data and data[key] for key in required_fields):
+        return jsonify({"status": "error", "error": "Missing required fields"}), 400
 
     user = get_user_by_id(current_user)
     if user is None:
-        return jsonify({"error": "User not found"}), 404
+        return jsonify({"status": "error", "error": "User not found"}), 404
 
-    # Try to retrieve the company associated with the user
-    companies_collection = get_companies_collection()  # Call the function to get the collection
+    # Retrieve the company associated with the user
+    companies_collection = get_companies_collection()
     company = companies_collection.find_one({"user_id": ObjectId(current_user)})
 
     if company:
         company_id = company['_id']
         company_name = company['title']
     else:
-        company_id = None  # Set to None if the user has no associated company
+        company_id = None
         company_name = None
 
-    # Prepare the job document
+    # Prepare the job document with required and optional fields
     job = {
         "title": data['title'],
         "date_posted": datetime.datetime.utcnow(),
@@ -40,21 +43,21 @@ def add_job(current_user):
         "salary": data['salary'],
         "location": data['location'],
         "job_type": data['job_type'],
-        "requirements": data['requirements'],
-        "description": data['description'],
-        "benefits": data['benefits'],
+        "requirements": data.get('requirements'),  # Optional
+        "description": data.get('description'),  # Optional
+        "benefits": data.get('benefits'),  # Optional
         "posted_by": {
             "user_id": ObjectId(current_user),
-            "company_id": company_id  # Set company_id to None if no company
+            "company_id": company_id
         },
-        "company_name": company_name  # Set company_name to None if no company
+        "company_name": company_name
     }
 
     try:
         jobs_collection.insert_one(job)
-        return jsonify({"message": "Job posted successfully"}), 201
+        return jsonify({"status": "success", "message": "Job posted successfully"}), 201
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"status": "error", "error": str(e)}), 500
 
 @jobs_bp.route('/jobs', methods=['GET'])
 def get_jobs():
