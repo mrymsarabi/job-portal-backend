@@ -48,46 +48,52 @@ def apply_for_job(current_user):
 def get_applications_for_job(current_user, job_id):
     job = jobs_collection.find_one({"_id": ObjectId(job_id)})
     if not job:
-        return jsonify({"error": "Job not found"}), 404
+        return jsonify({"status": "error", "message": "Job not found"}), 404
 
     if str(job['company_id']) != current_user:
-        return jsonify({"error": "Unauthorized"}), 403
+        return jsonify({"status": "error", "message": "Unauthorized"}), 403
 
     # Pagination parameters
     page_size = int(request.args.get('page_size', 10))
     current_page = int(request.args.get('current_page', 1))
 
-    # Fetch applications with pagination
-    total_count = job_applications_collection.count_documents({"job_id": ObjectId(job_id)})
-    query = job_applications_collection.find({"job_id": ObjectId(job_id)})
-    
-    if current_page == 0:
-        applications = list(query)
-    else:
-        applications = list(query.skip(page_size * (current_page - 1)).limit(page_size))
-    
-    application_list = []
-    for index, application in enumerate(applications, start=(current_page - 1) * page_size + 1):
-        user = get_user_by_id(application["user_id"])
-        resume = resumes_collection.find_one({"_id": application["resume_id"]})
-        
-        application_list.append({
-            "counter": index,
-            "application_id": str(application["_id"]),
-            "user_id": str(application["user_id"]),
-            "user_name": f"{user['first_name']} {user['last_name']}",
-            "resume_id": str(application["resume_id"]),
-            "resume": resume,
-            "date_applied": application["date_applied"],
-            "status": application["status"]  # Include the status
-        })
+    try:
+        # Fetch applications with pagination
+        total_count = job_applications_collection.count_documents({"job_id": ObjectId(job_id)})
+        query = job_applications_collection.find({"job_id": ObjectId(job_id)})
 
-    return jsonify({
-        "total_count": total_count,
-        "page_size": page_size,
-        "current_page": current_page,
-        "applications": application_list
-    }), 200
+        if current_page == 0:
+            applications = list(query)
+        else:
+            applications = list(query.skip(page_size * (current_page - 1)).limit(page_size))
+
+        application_list = []
+        for index, application in enumerate(applications, start=(current_page - 1) * page_size + 1):
+            user = get_user_by_id(application["user_id"])
+            resume = resumes_collection.find_one({"_id": application["resume_id"]})
+
+            application_list.append({
+                "counter": index,
+                "application_id": str(application["_id"]),
+                "user_id": str(application["user_id"]),
+                "user_name": f"{user['first_name']} {user['last_name']}",
+                "resume_id": str(application["resume_id"]),
+                "resume": resume,
+                "date_applied": application["date_applied"],
+                "status": application["status"]  # Include the status
+            })
+
+        return jsonify({
+            "status": "success",
+            "total_count": total_count,
+            "page_size": page_size,
+            "current_page": current_page,
+            "applications": application_list
+        }), 200
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 
 # Get My Applications with Pagination and Messages
 @job_applications_bp.route('/my-applications', methods=['GET'])
