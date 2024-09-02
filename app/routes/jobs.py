@@ -158,16 +158,23 @@ def get_my_jobs(current_user):
 @jobs_bp.route('/jobs/<job_id>', methods=['DELETE'])
 @token_required
 def delete_job(current_user, job_id):
-    job = jobs_collection.find_one({"_id": ObjectId(job_id)})
-
-    if not job:
-        return jsonify({"error": "Job not found"}), 404
-
-    if str(job['posted_by']['user_id']) != current_user:
-        return jsonify({"error": "Unauthorized"}), 403
-
     try:
+        # Find the job by its ID
+        job = jobs_collection.find_one({"_id": ObjectId(job_id)})
+
+        # Check if the job exists
+        if not job:
+            return jsonify({"status": "error", "error": "Job not found"}), 404
+
+        # Check if the current user is authorized to delete the job
+        if str(job['posted_by']['user_id']) != current_user:
+            return jsonify({"status": "error", "error": "Unauthorized"}), 403
+
+        # Attempt to delete the job
         jobs_collection.delete_one({"_id": ObjectId(job_id)})
-        return jsonify({"message": "Job deleted successfully"}), 200
+        return jsonify({"status": "success", "message": "Job deleted successfully"}), 200
+
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        # Handle any exceptions that occur during deletion
+        return jsonify({"status": "error", "error": str(e)}), 500
+
