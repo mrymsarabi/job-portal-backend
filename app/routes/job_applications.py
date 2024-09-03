@@ -42,6 +42,7 @@ def apply_for_job(current_user):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# Get Applications for a Job (Employer)
 @job_applications_bp.route('/applications/<job_id>', methods=['GET'])
 @token_required
 def get_applications_for_job(current_user, job_id):
@@ -94,7 +95,6 @@ def get_applications_for_job(current_user, job_id):
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-
 # Get My Applications with Pagination and Messages
 @job_applications_bp.route('/my-applications', methods=['GET'])
 @token_required
@@ -124,9 +124,16 @@ def get_my_applications(current_user):
                 "job_title": job["title"],
                 "company_name": job.get("company_name", "N/A"),
                 "location": job["location"],
-                "date_applied": application["date_applied"],
+                "date_applied": application["date_applied"].isoformat(),
                 "status": application["status"],  # Include the status
-                "messages": messages  # Include the messages
+                "messages": [
+                    {
+                        "sender_id": str(message["sender_id"]),
+                        "message": message["message"],
+                        "status": message["status"],
+                        "timestamp": message["timestamp"].isoformat()
+                    } for message in messages
+                ]  # Include the messages
             })
     
     return jsonify({
@@ -150,7 +157,7 @@ def update_application_status(current_user, application_id):
         return jsonify({"error": "Application not found"}), 404
 
     job = jobs_collection.find_one({"_id": application['job_id']})
-    if not job or str(job['company_id']) != current_user:
+    if not job or str(job['posted_by']['user_id']) != current_user:
         return jsonify({"error": "Unauthorized"}), 403
 
     new_status = data['status']
