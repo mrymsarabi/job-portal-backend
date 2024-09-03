@@ -79,6 +79,9 @@ def get_applications_for_job(current_user, job_id):
             user = get_user_by_id(application["user_id"])
             application_list.append({
                 "counter": counter_start + index,  # Counter value
+                "application_id": str(application["_id"]),  # Include application ID
+                "user_id": str(application["user_id"]),  # Include user ID
+                "job_id": str(application["job_id"]),  # Include job ID
                 "username": user.get("username", "Unknown"),  # Assuming 'username' is a field in user document
                 "date_applied": application["date_applied"].isoformat(),  # Convert to ISO format for consistency
                 "status": application["status"]
@@ -142,6 +145,55 @@ def get_my_applications(current_user):
         "current_page": current_page,
         "applied_jobs": applied_jobs
     }), 200
+
+# Get a Specific Job Application by Application ID
+@job_applications_bp.route('/applications/<application_id>', methods=['GET'])
+@token_required
+def get_application_by_id(current_user, application_id):
+    try:
+        # Retrieve the application by ID
+        application = get_job_application_by_id(application_id)
+        if not application:
+            return jsonify({"status": "error", "message": "Application not found"}), 404
+
+        # Check if the current user is either the applicant or the employer who posted the job
+        if str(application['user_id']) != current_user:
+            job = jobs_collection.find_one({"_id": application['job_id']})
+            if not job or str(job['posted_by']['user_id']) != current_user:
+                return jsonify({"status": "error", "message": "Unauthorized"}), 403
+
+        # Retrieve associated job details
+        job = jobs_collection.find_one({"_id": application["job_id"]})
+        user = get_user_by_id(application["user_id"])
+
+        # Retrieve associated messages
+        messages = list(messages_collection.find({"application_id": ObjectId(application_id)}))
+
+        # Build the response data
+        application_data = {
+            "application_id": str(application["_id"]),
+            "job_id": str(job["_id"]),
+            "job_title": job["title"],
+            "company_name": job.get("company_name", "N/A"),
+            "location": job["location"],
+            "user_id": str(user["_id"]),
+            "username": user.get("username", "Unknown"),
+            "date_applied": application["date_applied"].isoformat(),
+            "status": application["status"],
+            "messages": [
+                {
+                    "sender_id": str(message["sender_id"]),
+                    "message": message["message"],
+                    "status": message["status"],
+                    "timestamp": message["timestamp"].isoformat()
+                } for message in messages
+            ]
+        }
+
+        return jsonify({"status": "success", "application": application_data}), 200
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 # Update Application Status (Employer)
 @job_applications_bp.route('/applications/<application_id>/status', methods=['PATCH'])
