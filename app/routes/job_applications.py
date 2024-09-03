@@ -149,42 +149,57 @@ def get_my_applications(current_user):
 def update_application_status(current_user, application_id):
     data = request.get_json()
 
+    # Validate the incoming request data
     if not data or 'status' not in data or 'message' not in data:
-        return jsonify({"error": "Missing status or message"}), 400
+        return jsonify({"status": "error", "error": "Missing status or message"}), 400
 
+    # Retrieve the application by ID
     application = get_job_application_by_id(application_id)
     if not application:
-        return jsonify({"error": "Application not found"}), 404
+        return jsonify({"status": "error", "error": "Application not found"}), 404
 
+    # Retrieve the associated job
     job = jobs_collection.find_one({"_id": application['job_id']})
     if not job or str(job['posted_by']['user_id']) != current_user:
-        return jsonify({"error": "Unauthorized"}), 403
+        return jsonify({"status": "error", "error": "Unauthorized"}), 403
 
+    # Get the new status and message content
     new_status = data['status']
     message_content = data['message']
 
-    # Update application status
-    job_applications_collection.update_one(
-        {"_id": ObjectId(application_id)},
-        {"$set": {"status": new_status}}
-    )
-
-    # Create a message
-    message = {
-        "application_id": ObjectId(application_id),
-        "sender_id": ObjectId(current_user),  # Employer ID
-        "recipient_id": ObjectId(application['user_id']),  # Applicant ID
-        "message": message_content,
-        "status": new_status,
-        "timestamp": datetime.datetime.utcnow(),
-    }
-
     try:
-        # Save the message to the messages collection
+        # Update the application status
+        job_applications_collection.update_one(
+            {"_id": ObjectId(application_id)},
+            {"$set": {"status": new_status}}
+        )
+
+        # Create a message document
+        message = {
+            "application_id": ObjectId(application_id),
+            "sender_id": ObjectId(current_user),  # Employer ID
+            "recipient_id": ObjectId(application['user_id']),  # Applicant ID
+            "message": message_content,
+            "status": new_status,
+            "timestamp": datetime.datetime.utcnow(),
+        }
+
+        # Insert the message into the messages collection
         messages_collection.insert_one(message)
-        return jsonify({"message": "Application status updated successfully"}), 200
+
+        # Return a success response
+        return jsonify({
+            "status": "success",
+            "data": {
+                "application_id": str(application_id),
+                "new_status": new_status,
+                "message_content": message_content
+            }
+        }), 200
+
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        # Return an error response if something goes wrong
+        return jsonify({"status": "error", "error": str(e)}), 500
 
 # Delete a Job Application
 @job_applications_bp.route('/applications/<application_id>', methods=['DELETE'])
