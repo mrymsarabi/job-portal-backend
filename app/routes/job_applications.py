@@ -71,9 +71,13 @@ def get_applications_for_job(current_user, job_id):
             applications = list(query.skip(page_size * (current_page - 1)).limit(page_size))
 
         application_list = []
-        for application in applications:
+        # Start counter based on the current page and page size
+        counter_start = (current_page - 1) * page_size + 1
+
+        for index, application in enumerate(applications):
             user = get_user_by_id(application["user_id"])
             application_list.append({
+                "counter": counter_start + index,  # Counter value
                 "username": user.get("username", "Unknown"),  # Assuming 'username' is a field in user document
                 "date_applied": application["date_applied"].isoformat(),  # Convert to ISO format for consistency
                 "status": application["status"]
