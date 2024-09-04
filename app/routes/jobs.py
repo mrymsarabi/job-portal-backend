@@ -178,3 +178,4 @@ def delete_job(current_user, job_id):
         # Handle any exceptions that occur during deletion
         return jsonify({"status": "error", "error": str(e)}), 500
 
+

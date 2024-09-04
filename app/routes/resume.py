@@ -67,3 +67,23 @@ def get_resume(current_user):
             return jsonify({"status": "error", "message": "Resume not found"}), 404
     except Exception as e:
         return jsonify({"status": "error", "error": str(e)}), 500
+
+# Get a specific resume by resume_id
+@resume_bp.route('/resume/<resume_id>', methods=['GET'])
+@token_required
+def get_resume_by_id(current_user, resume_id):
+    try:
+        # Validate the resume_id
+        resume_id = ObjectId(resume_id)
+        
+        # Retrieve the resume by ID
+        resume = resumes_collection.find_one({"_id": resume_id})
+        
+        if resume:
+            # Convert ObjectId to string for JSON response
+            resume["user_id"] = str(resume["user_id"])
+            return jsonify({"status": "success", "resume": resume}), 200
+        else:
+            return jsonify({"status": "error", "message": "Resume not found"}), 404
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500

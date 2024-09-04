@@ -4,12 +4,22 @@ from flask_pymongo import PyMongo
 from config import Config
 from flask_cors import CORS
 
+import logging
+
 bcrypt = Bcrypt()
 mongo = PyMongo()
 
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
+
+
+    # Configure logging
+    logging.basicConfig(level=logging.DEBUG)
+    logger = logging.getLogger()
+    handler = logging.StreamHandler()  # Log to console
+    handler.setLevel(logging.DEBUG)
+    logger.addHandler(handler)
     
     # Enable CORS for all routes and origins
     CORS(app, resources={r"/*": {"origins": "*"}}, allow_headers=["Content-Type", "Authorization"], methods=["GET", "POST", "DELETE", "PUT", "OPTIONS"])
