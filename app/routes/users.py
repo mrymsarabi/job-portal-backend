@@ -173,4 +173,22 @@ def check_login_status():
             "message": "Token is missing"
         }), 401
 
-
+@users_bp.route('/user/<user_id>', methods=['GET'])
+@token_required
+def get_user_by_id(current_user, user_id):
+    try:
+        user = users_collection.find_one({"_id": ObjectId(user_id)}, {"password": 0})  # Exclude the password field
+        if user:
+            user_data = {
+                "user_id": str(user["_id"]),  # Convert ObjectId to string
+                "first_name": user["first_name"],
+                "last_name": user["last_name"],
+                "username": user["username"],
+                "email": user["email"],
+                "birth_date": user["birth_date"]
+            }
+            return jsonify({"status": "success", "user": user_data}), 200
+        else:
+            return jsonify({"status": "error", "message": "User not found"}), 404
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
