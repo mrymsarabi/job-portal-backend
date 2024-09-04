@@ -192,8 +192,10 @@ def update_application_status(current_user, application_id):
         message_data = {
             "application_id": ObjectId(application_id),
             "sender_id": ObjectId(current_user),
+            "receiver_id": application['applicant_id'],  # Assuming application has `applicant_id`
             "message": data['message'],
             "status": data['status'],
+            "read_status": "unread",  # Default to unread
             "timestamp": datetime.datetime.utcnow()
         }
         messages_collection.insert_one(message_data)
