@@ -19,6 +19,30 @@ def get_messages_for_application(current_user, application_id):
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
+# Get all messages for the current logged-in user (receiver)
+@messages_bp.route('/user/messages', methods=['GET'])
+@token_required
+def get_messages_for_user(current_user):
+    try:
+        # Fetch messages where receiver_id matches the current_user
+        messages_collection = get_messages_collection()
+        messages = list(messages_collection.find({"receiver_id": ObjectId(current_user)}))
+
+        if not messages:
+            return jsonify({"status": "error", "error": "No messages found"}), 404
+
+        # Convert ObjectId to string for JSON serialization
+        for message in messages:
+            message['_id'] = str(message['_id'])
+            message['application_id'] = str(message['application_id'])
+            message['sender_id'] = str(message['sender_id'])
+            message['receiver_id'] = str(message['receiver_id'])
+
+        return jsonify({"status": "success", "messages": messages}), 200
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 # Mark a message as read
 @messages_bp.route('/<message_id>/read', methods=['PATCH'])
 @token_required
