@@ -191,6 +191,7 @@ def update_application_status(current_user, application_id):
         # Add a message to the messages collection
         message_data = {
             "application_id": application['_id'],
+            "job_id": application['job_id'],
             "sender_id": ObjectId(current_user),
             "receiver_id": application['user_id'],  # Assuming application has `applicant_id`
             "message": data['message'],
