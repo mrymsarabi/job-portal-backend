@@ -172,7 +172,7 @@ def update_application_status(current_user, application_id):
         return jsonify({"status": "error", "error": "Missing status or message"}), 400
 
     # Validate and retrieve the application by ID
-    application = get_job_application_by_id(application_id)
+    application = job_applications_collection.find_one({"_id": ObjectId(application_id)})
     if not application:
         return jsonify({"status": "error", "error": "Application not found"}), 404
 
@@ -190,9 +190,9 @@ def update_application_status(current_user, application_id):
 
         # Add a message to the messages collection
         message_data = {
-            "application_id": ObjectId(application_id),
+            "application_id": application['_id'],
             "sender_id": ObjectId(current_user),
-            "receiver_id": application['applicant_id'],  # Assuming application has `applicant_id`
+            "receiver_id": application['user_id'],  # Assuming application has `applicant_id`
             "message": data['message'],
             "status": data['status'],
             "read_status": "unread",  # Default to unread
