@@ -69,6 +69,7 @@ def get_messages_for_user(current_user):
             # Enrich the message with sender and receiver usernames and job details
             enriched_message = {
                 'counter': counter,
+                'id': message['_id'],
                 'message': message['message'],
                 'status': message['status'],
                 'read_status': message['read_status'],
@@ -92,7 +93,7 @@ def get_messages_for_user(current_user):
 
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
-        
+
 # Mark a message as read
 @messages_bp.route('/<message_id>/read', methods=['PATCH'])
 @token_required
@@ -130,5 +131,56 @@ def send_message(current_user, application_id):
         messages_collection = get_messages_collection()
         messages_collection.insert_one(message_data)
         return jsonify({"status": "success", "message": "Message sent successfully"}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+# Get a specific message by ID
+@messages_bp.route('/message/<message_id>', methods=['GET'])
+@token_required
+def get_message_by_id_route(current_user, message_id):
+    try:
+        messages_collection = get_messages_collection()
+        users_collection = get_users_collection()
+        jobs_collection = get_jobs_collection()
+
+        # Fetch the message using the message ID
+        message = messages_collection.find_one({"_id": ObjectId(message_id)})
+
+        if not message:
+            return jsonify({"status": "error", "error": "Message not found"}), 404
+
+        # Convert ObjectId to string for JSON serialization
+        message['_id'] = str(message['_id'])
+        message['job_id'] = str(message['job_id'])
+        message['application_id'] = str(message['application_id'])
+        message['sender_id'] = str(message['sender_id'])
+        message['receiver_id'] = str(message['receiver_id'])
+
+        # Ensure that the current user is the receiver of the message
+        if message['receiver_id'] != str(current_user):
+            return jsonify({"status": "error", "error": "Unauthorized access"}), 403
+
+        # Fetch the sender's and receiver's user details
+        sender = users_collection.find_one({"_id": ObjectId(message['sender_id'])}, {"username": 1, "_id": 0})
+        receiver = users_collection.find_one({"_id": ObjectId(message['receiver_id'])}, {"username": 1, "_id": 0})
+
+        # Fetch job details
+        job = jobs_collection.find_one({"_id": ObjectId(message['job_id'])})
+
+        # Enrich the message with sender, receiver, and job details
+        enriched_message = {
+            'id': message['_id'],
+            'message': message['message'],
+            'status': message['status'],
+            'read_status': message['read_status'],
+            'timestamp': message['timestamp'],
+            'sender_username': sender['username'] if sender else 'Unknown',
+            'receiver_username': receiver['username'] if receiver else 'Unknown',
+            'job_name': job['title'] if job else 'Unknown Job',
+            'company_name': job['company_name'] if job else 'Unknown Company'
+        }
+
+        return jsonify({"status": "success", "message": enriched_message}), 200
+
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
