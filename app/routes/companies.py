@@ -116,9 +116,10 @@ def get_company(company_id):
     company = companies_collection.find_one({"_id": ObjectId(company_id)})
 
     if not company:
-        return jsonify({"error": "Company not found"}), 404
+        return jsonify({"status": "error", "message": "Company not found"}), 404
 
     company['_id'] = str(company['_id'])
     company['user_id'] = str(company['user_id'])
 
-    return jsonify(company), 200
+    return jsonify({"status": "success", "company": company}), 200
+
