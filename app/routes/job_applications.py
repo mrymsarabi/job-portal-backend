@@ -30,15 +30,15 @@ def apply_for_job(current_user):
     
     required_fields = ('job_id',)
     if not all(field in data for field in required_fields):
-        return jsonify({"error": "Missing fields"}), 400
+        return jsonify({"status": "error", "error": "Missing fields"}), 400
 
     job = jobs_collection.find_one({"_id": ObjectId(data['job_id'])})
     if not job:
-        return jsonify({"error": "Job not found"}), 404
+        return jsonify({"status": "error", "error": "Job not found"}), 404
 
     resume = resumes_collection.find_one({"user_id": ObjectId(current_user)})
     if not resume:
-        return jsonify({"error": "Resume not found"}), 404
+        return jsonify({"status": "error", "error": "Resume not found"}), 404
 
     application = {
         "job_id": ObjectId(data['job_id']),
@@ -50,9 +50,9 @@ def apply_for_job(current_user):
 
     try:
         job_applications_collection.insert_one(application)
-        return jsonify({"message": "Job application submitted successfully"}), 201
+        return jsonify({"status": "success", "message": "Job application submitted successfully"}), 201
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"status": "error", "error": str(e)}), 500
 
 # Get Applications for a Job (Employer)
 @job_applications_bp.route('/applications/<job_id>', methods=['GET'])
