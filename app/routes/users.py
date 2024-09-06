@@ -113,11 +113,11 @@ def update_profile(current_user):
         update_fields['last_name'] = data['last_name']
     if 'username' in data:
         if users_collection.find_one({"username": data['username'], "_id": {"$ne": ObjectId(current_user)}}):
-            return jsonify({"error": "Username already taken"}), 400
+            return jsonify({"status": "error", "message": "Username already taken"}), 400
         update_fields['username'] = data['username']
     if 'email' in data:
         if users_collection.find_one({"email": data['email'], "_id": {"$ne": ObjectId(current_user)}}):
-            return jsonify({"error": "Email already exists"}), 400
+            return jsonify({"status": "error", "message": "Email already exists"}), 400
         update_fields['email'] = data['email']
     if 'password' in data:
         update_fields['password'] = bcrypt.generate_password_hash(data['password']).decode('utf-8')
@@ -125,13 +125,13 @@ def update_profile(current_user):
         update_fields['birth_date'] = data['birth_date']
 
     if not update_fields:
-        return jsonify({"error": "No fields to update"}), 400
+        return jsonify({"status": "error", "message": "No fields to update"}), 400
 
     try:
         users_collection.update_one({"_id": ObjectId(current_user)}, {"$set": update_fields})
-        return jsonify({"message": "Profile updated successfully"}), 200
+        return jsonify({"status": "success", "message": "Profile updated successfully"}), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 @users_bp.route('/remove_account', methods=['DELETE'])
 @token_required

@@ -155,6 +155,51 @@ def get_my_jobs(current_user):
         "jobs": jobs
     }), 200
 
+@jobs_bp.route('/jobs/<job_id>', methods=['PUT'])
+@token_required
+def update_job(current_user, job_id):
+    try:
+        # Find the job by its ID
+        job = jobs_collection.find_one({"_id": ObjectId(job_id)})
+
+        # Check if the job exists
+        if not job:
+            return jsonify({"status": "error", "error": "Job not found"}), 404
+
+        # Check if the current user is authorized to update the job
+        if str(job['posted_by']['user_id']) != current_user:
+            return jsonify({"status": "error", "error": "Unauthorized"}), 403
+
+        # Get the new data from the request
+        data = request.get_json()
+
+        # Update only the provided fields
+        update_fields = {}
+        if 'title' in data:
+            update_fields['title'] = data['title']
+        if 'sector' in data:
+            update_fields['sector'] = data['sector']
+        if 'salary' in data:
+            update_fields['salary'] = data['salary']
+        if 'location' in data:
+            update_fields['location'] = data['location']
+        if 'job_type' in data:
+            update_fields['job_type'] = data['job_type']
+        if 'requirements' in data:
+            update_fields['requirements'] = data['requirements']
+        if 'description' in data:
+            update_fields['description'] = data['description']
+        if 'benefits' in data:
+            update_fields['benefits'] = data['benefits']
+
+        # Update the job in the collection
+        jobs_collection.update_one({"_id": ObjectId(job_id)}, {"$set": update_fields})
+
+        return jsonify({"status": "success", "message": "Job updated successfully"}), 200
+
+    except Exception as e:
+        return jsonify({"status": "error", "error": str(e)}), 500
+
 @jobs_bp.route('/jobs/<job_id>', methods=['DELETE'])
 @token_required
 def delete_job(current_user, job_id):
