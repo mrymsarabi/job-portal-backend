@@ -100,34 +100,6 @@ def get_job_by_id(job_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-
-@jobs_bp.route('/jobs/user/<user_id>', methods=['GET'])
-def get_jobs_by_user(user_id):
-    page_size = int(request.args.get('page_size', 10))  # Default page size is 10
-    current_page = int(request.args.get('current_page', 1))  # Default to the first page
-
-    query = jobs_collection.find({"posted_by.user_id": ObjectId(user_id)})
-    total_count = jobs_collection.count_documents({"posted_by.user_id": ObjectId(user_id)})
-
-    if current_page == 0:
-        jobs = list(query)
-    else:
-        jobs = list(query.skip(page_size * (current_page - 1)).limit(page_size))
-
-    for index, job in enumerate(jobs, start=(current_page - 1) * page_size + 1):
-        job['_id'] = str(job['_id'])
-        job['posted_by']['user_id'] = str(job['posted_by']['user_id'])
-        job['posted_by']['company_id'] = str(job['posted_by']['company_id'])
-        job['counter'] = index
-
-    return jsonify({
-        "total_count": total_count,
-        "page_size": page_size,
-        "current_page": current_page,
-        "jobs": jobs
-    }), 200
-
-
 @jobs_bp.route('/jobs/mine', methods=['GET'])
 @token_required
 def get_my_jobs(current_user):

@@ -73,54 +73,6 @@ def update_company(current_user, company_id):
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-@companies_bp.route('/companies', methods=['GET'])
-def get_all_companies():
-    page_size = int(request.args.get('page_size', 10))  # Default page size is 10
-    current_page = int(request.args.get('current_page', 1))  # Default to the first page
-
-    query = companies_collection.find()
-    total_count = companies_collection.count_documents({})  # Count total documents
-
-    if current_page == 0:
-        companies = list(query)
-    else:
-        companies = list(query.skip(page_size * (current_page - 1)).limit(page_size))
-
-    for company in companies:
-        company['_id'] = str(company['_id'])
-        company['user_id'] = str(company['user_id'])
-
-    return jsonify({
-        "total_count": total_count,
-        "page_size": page_size,
-        "current_page": current_page,
-        "companies": companies
-    }), 200
-
-@companies_bp.route('/companies/user/<user_id>', methods=['GET'])
-def get_companies_by_user(user_id):
-    page_size = int(request.args.get('page_size', 10))  # Default page size is 10
-    current_page = int(request.args.get('current_page', 1))  # Default to the first page
-
-    query = companies_collection.find({"user_id": ObjectId(user_id)})
-    total_count = companies_collection.count_documents({"user_id": ObjectId(user_id)})
-
-    if current_page == 0:
-        companies = list(query)
-    else:
-        companies = list(query.skip(page_size * (current_page - 1)).limit(page_size))
-
-    for company in companies:
-        company['_id'] = str(company['_id'])
-        company['user_id'] = str(company['user_id'])
-
-    return jsonify({
-        "total_count": total_count,
-        "page_size": page_size,
-        "current_page": current_page,
-        "companies": companies
-    }), 200
-
 @companies_bp.route('/companies/<company_id>', methods=['GET'])
 def get_company(company_id):
     company = companies_collection.find_one({"_id": ObjectId(company_id)})

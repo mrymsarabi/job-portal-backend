@@ -133,22 +133,6 @@ def update_profile(current_user):
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-@users_bp.route('/remove_account', methods=['DELETE'])
-@token_required
-def remove_account(current_user):
-    user = users_collection.find_one({"_id": ObjectId(current_user)})
-    
-    if user and bcrypt.check_password_hash(user['password'], request.get_json()['password']):
-        users_collection.delete_one({"_id": ObjectId(user['_id'])})
-        return jsonify({"message": "Account deleted successfully"}), 200
-    else:
-        return jsonify({"error": "Invalid password"}), 401
-
-@users_bp.route('/protected', methods=['GET'])
-@token_required
-def protected_route(current_user):
-    return jsonify({"message": f"Hello, user {current_user}!"})
-
 @users_bp.route('/check_login', methods=['GET'])
 def check_login_status():
     auth_header = request.headers.get('Authorization')
