@@ -109,31 +109,6 @@ def mark_message_as_read_route(current_user, message_id):
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-# Send a new message related to a job application
-@messages_bp.route('/application/<application_id>/send', methods=['POST'])
-@token_required
-def send_message(current_user, application_id):
-    data = request.get_json()
-
-    if not data or 'message' not in data:
-        return jsonify({"status": "error", "error": "Message content is missing"}), 400
-
-    message_data = {
-        "application_id": ObjectId(application_id),
-        "sender_id": ObjectId(current_user),
-        "receiver_id": ObjectId(data['receiver_id']),  # Assuming you send receiver_id in the request body
-        "message": data['message'],
-        "status": data.get('status', 'unread'),  # Default status to 'unread'
-        "timestamp": datetime.datetime.utcnow()
-    }
-
-    try:
-        messages_collection = get_messages_collection()
-        messages_collection.insert_one(message_data)
-        return jsonify({"status": "success", "message": "Message sent successfully"}), 200
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
-
 # Get a specific message by ID
 @messages_bp.route('/message/<message_id>', methods=['GET'])
 @token_required
