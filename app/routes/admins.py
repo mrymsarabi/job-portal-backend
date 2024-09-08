@@ -1,16 +1,10 @@
 from flask import Blueprint, request, jsonify, session
-from werkzeug.security import check_password_hash, generate_password_hash
+from app import bcrypt
 from app.models import get_admin_by_email, get_admin_by_username, get_admin_by_id, create_admin
 
 admins_bp = Blueprint('admins', __name__)
 
-# Helper function to access the 'admins' collection
-def get_admins_collection():
-    if mongo.db is None:
-        raise RuntimeError("MongoDB not initialized")
-    return mongo.db.admins
-
-# Admin Registration (You can run this manually to insert admins into the database)
+# Admin Registration
 @admins_bp.route('/register', methods=['POST'])
 def register_admin():
     data = request.get_json()
@@ -25,13 +19,15 @@ def register_admin():
     if get_admin_by_email(email):
         return jsonify({'error': 'Admin with this email already exists'}), 400
 
-    # Hash the password and create the admin
-    hashed_password = generate_password_hash(password)
+    # Hash the password using bcrypt
+    hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
+
+    # Create the admin
     create_admin(username, email, hashed_password)
 
     return jsonify({'message': 'Admin registered successfully'}), 201
 
-# Admin Login (using either username or email)
+# Admin Login
 @admins_bp.route('/login', methods=['POST'])
 def login_admin():
     data = request.get_json()
@@ -47,11 +43,11 @@ def login_admin():
     if not admin:
         return jsonify({'error': 'Invalid username/email or password'}), 401
 
-    # Check if the password matches
-    if not check_password_hash(admin['password'], password):
+    # Check if the password matches using bcrypt
+    if not bcrypt.check_password_hash(admin['password'], password):
         return jsonify({'error': 'Invalid username/email or password'}), 401
 
-    # Set admin session (or token-based authentication can be used here)
+    # Set admin session (or token-based authentication)
     session['admin_id'] = str(admin['_id'])
 
     return jsonify({'message': 'Login successful', 'admin_id': str(admin['_id'])}), 200
