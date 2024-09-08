@@ -33,6 +33,11 @@ def get_messages_collection():
         raise RuntimeError("MongoDB not initialized")
     return mongo.db.messages
 
+def get_admins_collection():
+    if mongo.db is None:
+        raise RuntimeError("MongoDB not initialized")
+    return mongo.db.admins
+
 # Helper Functions
 
 def get_user_by_id(user_id):
@@ -59,5 +64,12 @@ def mark_message_as_read(message_id):
     messages_collection = get_messages_collection()
     return messages_collection.update_one(
         {"_id": ObjectId(message_id)},
-        {"$set": {"read_status": "read"}}
-    )
+        {"$set": {"read_status": "read"}})
+
+def get_admin_by_email(email):
+    admins_collection = get_admins_collection()
+    return admins_collection.find_one({"email": email})
+
+def get_admin_by_username(username):
+    admins_collection = get_admins_collection()
+    return admins_collection.find_one({"username": username})
