@@ -33,6 +33,7 @@ def create_app():
     from app.routes.job_applications import job_applications_bp
     from app.routes.companies import companies_bp 
     from app.routes.messages import messages_bp
+    from app.routes.admins import admins_bp
 
     app.register_blueprint(users_bp, url_prefix='/users')
     app.register_blueprint(jobs_bp, url_prefix='/jobs')
@@ -40,5 +41,6 @@ def create_app():
     app.register_blueprint(job_applications_bp, url_prefix="/job-applications")
     app.register_blueprint(companies_bp, url_prefix="/companies")
     app.register_blueprint(messages_bp, url_prefix='/messages')
+    app.register_blueprint(admins_bp, url_prefix='/admins')
     
     return app

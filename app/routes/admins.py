@@ -1,10 +1,12 @@
-from flask import Blueprint, request, jsonify, session
+from flask import Blueprint, request, jsonify, current_app
 from app import bcrypt
-from app.models import get_admin_by_email, get_admin_by_username, get_admin_by_id, create_admin
+from app.models import get_admin_by_email, get_admin_by_username, create_admin
+from utils import token_required_admin
+import jwt
+import datetime
 
 admins_bp = Blueprint('admins', __name__)
 
-# Admin Registration
 @admins_bp.route('/register', methods=['POST'])
 def register_admin():
     data = request.get_json()
@@ -13,41 +15,37 @@ def register_admin():
     password = data.get('password')
 
     if not username or not email or not password:
-        return jsonify({'error': 'Missing required fields'}), 400
+        return jsonify({'status': 'error', 'message': 'Missing required fields'}), 400
 
-    # Check if the email already exists
     if get_admin_by_email(email):
-        return jsonify({'error': 'Admin with this email already exists'}), 400
+        return jsonify({'status': 'error', 'message': 'Admin with this email already exists'}), 400
 
-    # Hash the password using bcrypt
     hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
-
-    # Create the admin
     create_admin(username, email, hashed_password)
 
-    return jsonify({'message': 'Admin registered successfully'}), 201
+    return jsonify({'status': 'success', 'message': 'Admin registered successfully'}), 201
 
-# Admin Login
 @admins_bp.route('/login', methods=['POST'])
 def login_admin():
     data = request.get_json()
-    login_identifier = data.get('username') or data.get('email')  # Accept both username and email
+    login_identifier = data.get('username') or data.get('email')
     password = data.get('password')
 
     if not login_identifier or not password:
-        return jsonify({'error': 'Username/Email and password required'}), 400
+        return jsonify({'status': 'error', 'message': 'Username/Email and password required'}), 400
 
-    # Find the admin by username or email
     admin = get_admin_by_username(login_identifier) or get_admin_by_email(login_identifier)
 
     if not admin:
-        return jsonify({'error': 'Invalid username/email or password'}), 401
+        return jsonify({'status': 'error', 'message': 'Invalid username/email or password'}), 401
 
-    # Check if the password matches using bcrypt
     if not bcrypt.check_password_hash(admin['password'], password):
-        return jsonify({'error': 'Invalid username/email or password'}), 401
+        return jsonify({'status': 'error', 'message': 'Invalid username/email or password'}), 401
 
-    # Set admin session (or token-based authentication)
-    session['admin_id'] = str(admin['_id'])
+    token = jwt.encode({
+        'admin_id': str(admin['_id']),
+        'role': 'admin',
+        'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=1)
+    }, current_app.config['SECRET_KEY'], algorithm="HS256")
 
-    return jsonify({'message': 'Login successful', 'admin_id': str(admin['_id'])}), 200
+    return jsonify({'status': 'success', 'message': 'Login successful', 'token': token}), 200
