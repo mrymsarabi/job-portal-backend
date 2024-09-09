@@ -13,7 +13,6 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
 
-
     # Configure logging
     logging.basicConfig(level=logging.DEBUG)
     logger = logging.getLogger()
@@ -34,6 +33,7 @@ def create_app():
     from app.routes.companies import companies_bp 
     from app.routes.messages import messages_bp
     from app.routes.admins import admins_bp
+    from app.routes.reports import reports_bp
 
     app.register_blueprint(users_bp, url_prefix='/users')
     app.register_blueprint(jobs_bp, url_prefix='/jobs')
@@ -42,5 +42,6 @@ def create_app():
     app.register_blueprint(companies_bp, url_prefix="/companies")
     app.register_blueprint(messages_bp, url_prefix='/messages')
     app.register_blueprint(admins_bp, url_prefix='/admins')
+    app.register_blueprint(reports_bp, url_prefix='/reports')
     
     return app

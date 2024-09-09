@@ -75,7 +75,7 @@ def get_admin_by_username(username):
     admins_collection = get_admins_collection()
     return admins_collection.find_one({"username": username})
 
-def create_admin(username, email, hashed_password):  # Added this function
+def create_admin(username, email, hashed_password):
     admins_collection = get_admins_collection()
     new_admin = {
         "username": username,
@@ -85,3 +85,24 @@ def create_admin(username, email, hashed_password):  # Added this function
     }
     admins_collection.insert_one(new_admin)
     return new_admin
+
+# Reporting Functions
+def get_users_count_by_date_range(start_date, end_date):
+    users_collection = get_users_collection()
+    return users_collection.count_documents({
+        "created_at": {"$gte": start_date, "$lt": end_date}
+    })
+
+def get_jobs_count_by_date_range(start_date, end_date):
+    jobs_collection = get_jobs_collection()
+    return jobs_collection.count_documents({
+        "created_at": {"$gte": start_date, "$lt": end_date}
+    })
+
+def get_applicants_count_by_date_range(start_date, end_date):
+    jobs_collection = get_jobs_collection()
+    return jobs_collection.aggregate([
+        {"$unwind": "$applications"},
+        {"$match": {"applications.created_at": {"$gte": start_date, "$lt": end_date}}},
+        {"$count": "applicants_count"}
+    ]).next().get('applicants_count', 0)

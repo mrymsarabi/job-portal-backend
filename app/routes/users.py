@@ -42,7 +42,8 @@ def signup():
         "username": data['username'],
         "email": data['email'],
         "password": hashed_password,
-        "birth_date": data['birth_date']
+        "birth_date": data['birth_date'],
+        "createdAt": datetime.datetime.utcnow()
     }
     
     try:

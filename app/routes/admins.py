@@ -7,8 +7,8 @@ import datetime
 
 admins_bp = Blueprint('admins', __name__)
 
-@admins_bp.route('/register', methods=['POST'])
-def register_admin():
+@admins_bp.route('/signup', methods=['POST'])
+def signup_admin():
     data = request.get_json()
     username = data.get('username')
     email = data.get('email')
