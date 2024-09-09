@@ -1,5 +1,6 @@
 from app import mongo
 from bson.objectid import ObjectId
+import datetime  # Add this to handle timestamps
 
 # Collection Access Functions
 
@@ -73,3 +74,14 @@ def get_admin_by_email(email):
 def get_admin_by_username(username):
     admins_collection = get_admins_collection()
     return admins_collection.find_one({"username": username})
+
+def create_admin(username, email, hashed_password):  # Added this function
+    admins_collection = get_admins_collection()
+    new_admin = {
+        "username": username,
+        "email": email,
+        "password": hashed_password,
+        "created_at": datetime.datetime.utcnow()
+    }
+    admins_collection.insert_one(new_admin)
+    return new_admin

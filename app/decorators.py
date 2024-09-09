@@ -25,7 +25,7 @@ def token_required(f):
 
 # Used for collections related to the admins:
 def token_required_admin(f): 
-     @wraps(f)
+    @wraps(f)
     def decorated_function(*args, **kwargs):
         token = request.headers.get('Authorization')
         

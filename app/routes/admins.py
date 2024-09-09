@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify, current_app
 from app import bcrypt
 from app.models import get_admin_by_email, get_admin_by_username, create_admin
-from utils import token_required_admin
+from app.decorators import token_required_admin
 import jwt
 import datetime
 
